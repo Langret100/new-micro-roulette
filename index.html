@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="캡슐을 흔들어 돌리는 마이크로비트 무선 상품 룰렛. 효과음, 당첨 축하, 상품 수량 관리.">
+  <title>캡슐 셰이크! · 마이크로비트 룰렛</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="sparkle sparkle-one"></div><div class="sparkle sparkle-two"></div>
+<div class="app-shell">
+  <!-- Floating controls only: no permanent top bar or sidebar. -->
+  <div class="floating-dock" aria-label="행사 운영 버튼">
+    <div class="floating-connect">
+      <div class="connection-indicator" id="connectionState" role="status" aria-live="polite"><i></i><span>미연결</span></div>
+      <button id="connectBtn" class="btn btn-primary" type="button">📶 마이크로비트 연결</button>
+      <span id="bleLive" class="ble-live" aria-live="polite" hidden>센서 대기 중</span>
+    </div>
+    <div class="floating-tools">
+      <button id="fullBtn" class="btn btn-ghost icon-only" type="button" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
+      <button id="presentBtn" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="operatorPanel">⚙ 운영</button>
+    </div>
+  </div>
+  <button id="operatorBackdrop" class="operator-backdrop" type="button" hidden aria-label="운영 패널 닫기"></button>
+
+  <main class="main-grid">
+    <section class="wheel-section" aria-label="상품 룰렛">
+
+      <h1 id="mainTitle">캡슐을 흔들어 <em>행운</em>을 돌려요!</h1>
+      <p class="lead" id="hint">마이크로비트를 흔들거나 룰렛을 손으로 드래그하세요.</p>
+      <div class="wheel-stage" id="wheelStage">
+        <div id="shakeTimer" class="shake-timer" hidden aria-live="off">5</div>
+        <div class="wheel-glow"></div>
+        <div class="speed-trails" aria-hidden="true"></div>
+        <div class="turbo-streaks" aria-hidden="true"></div>
+        <div class="energy-halo" aria-hidden="true"></div>
+        <div class="stage-burst" id="stageBurst" aria-hidden="true"></div>
+        <div class="wheel-frame">
+          <canvas id="wheelCanvas" aria-label="상품 이름이 표시된 룰렛" role="img"></canvas>
+          <div class="wheel-pointer" id="pointer" aria-hidden="true"><span></span></div>
+          <div class="wheel-hub"><span>✦</span></div>
+          <div class="single-prize-banner" id="singlePrizeBanner" hidden><small>마지막 남은 상품!</small><strong id="singlePrizeName"></strong></div>
+        </div>
+        <div class="comic-brake" id="comicBrake" aria-hidden="true">
+          <div class="comic-brake-burst"><b>끼이익!!</b><span>SKRREEECH!</span></div>
+          <i class="skid skid-a"></i><i class="skid skid-b"></i>
+          <div class="brake-smoke brake-smoke-a"></div><div class="brake-smoke brake-smoke-b"></div>
+        </div>
+        <div class="reaction-bubble" id="reaction" aria-hidden="true"></div>
+        <div class="combo-badge" id="comboBadge" hidden>🔥 <span>0</span> SHAKE!</div>
+      </div>
+      <aside class="speed-tower" id="speedTower" aria-label="실시간 룰렛 회전 속도" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="정지 상태">
+        <div class="speed-tower-head"><span class="speed-tower-bolt">⚡</span><strong>SPEED</strong><small>SHAKE POWER</small></div>
+        <div class="speed-tower-bars" id="speedTowerBars" aria-hidden="true">
+          <i style="--i:1;--c:#16e6a0"></i><i style="--i:2;--c:#37e68c"></i><i style="--i:3;--c:#81e653"></i>
+          <i style="--i:4;--c:#b7e941"></i><i style="--i:5;--c:#dce633"></i><i style="--i:6;--c:#ffd137"></i>
+          <i style="--i:7;--c:#ffac31"></i><i style="--i:8;--c:#ff8534"></i><i style="--i:9;--c:#ff6435"></i>
+          <i style="--i:10;--c:#ff4538"></i><i style="--i:11;--c:#ff263a"></i><i style="--i:12;--c:#ff1846"></i>
+        </div>
+        <div class="speed-tower-reading"><strong id="speedTowerValue">0</strong><span>%</span></div>
+        <div class="speed-tower-word" id="speedTowerWord">READY</div>
+        <div class="peak-reading">최고 <strong id="peakSpeed">0</strong>%</div>
+      </aside>
+      <div class="stage-status" id="stageStatus" aria-live="polite">연결 후 캡슐을 흔들면 시작!</div>
+      <div class="stage-footnote">SHAKE IT! <span>✦</span> SPIN IT! <span>✦</span> WIN IT!</div>
+      <div class="stage-toast" id="stageToast" role="alert" hidden></div>
+    </section>
+
+    <aside class="side-panel" id="operatorPanel" aria-label="운영 패널">
+      <section class="panel stats-panel">
+        <h2>실시간 셰이크 <span>LIVE</span></h2>
+        <div class="metric-row"><div><small>흔들기 횟수</small><strong id="shakeCount">0<span>회</span></strong></div><div><small>회전 속도</small><strong id="speedText">0.0<span>바퀴/초</span></strong></div></div>
+        <div class="meter-label"><span>셰이크 파워</span><b id="intensityLabel">0%</b></div>
+        <div class="meter"><div id="intensityBar"></div></div>
+        <div class="notice"><span>💡</span><p>시작 후 최대 5초! 최고 속도에 따라 등급별 당첨 확률이 달라집니다. 붉은 구간에 도달하면 다른 등급이 남아 있는 한 일반 등급은 제외됩니다.</p></div>
+        <div class="ble-diagnostics"><strong>📡 실제 기기 수신 점검</strong><div id="bleDiagnostics" role="status">미연결 · 캡슐 연결 후 X/Y/Z 수치가 변하는지 확인하세요.</div></div>
+      </section>
+
+      <section class="panel prize-panel">
+        <div class="panel-heading"><h2>상품 명단 <small id="prizeCount">8종</small></h2><button id="editBtn" class="link-btn">⚙ 상품·재고 관리</button></div>
+        <p id="prizeSource" class="reward-source">기본 명단 불러오는 중</p>
+        <div class="inventory-summary"><span id="activeCount">🎯 진행 8종</span><span id="issuedCount">🎁 지급 0개</span></div>
+        <div id="prizePills" class="prize-pills"></div>
+        <p class="inventory-note">수량을 설정한 상품은 모두 지급되면 다음 회차부터 자동 제외돼요.</p>
+      </section>
+
+      <section class="panel tools-panel">
+        <div class="panel-heading"><h2>운영 도구</h2></div>
+        <div class="tool-buttons"><button id="testBtn" class="btn btn-secondary">🧪 가상 흔들기</button><button id="nextBtn" class="btn btn-outline">↻ 다음 참가자</button></div>
+        <label class="switch-line"><input id="autoNext" type="checkbox" checked><span>당첨 8초 후 자동으로 다음 차례</span></label>
+        <div class="sound-line"><label class="switch-line"><input id="soundToggle" type="checkbox" checked><span>효과음</span></label><button id="soundTest" class="link-btn">▶ 효과음 8종 점검</button></div>
+        <p id="soundDiagnostic" class="sound-diagnostic" role="status">효과음 준비 전 · 소리 점검 버튼을 눌러 확인</p>
+        <label class="volume-line" for="volumeSlider"><span>🔊 음량</span><input type="range" min="0" max="100" value="65" step="5" id="volumeSlider"><b id="volumeValue">65%</b></label>
+        <div id="warning" class="warning" role="alert" hidden></div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="panel-heading"><h2>최근 당첨 <small id="resultCount"></small></h2><div class="history-actions"><button id="undoLast" class="link-btn" title="마지막 상품 지급을 취소하고 재고를 1개 복구합니다">↶ 마지막 지급 취소</button><button id="clearHistory" class="link-btn muted">기록 지우기</button></div></div>
+        <div id="history" class="history-items"><p class="empty">첫 번째 행운을 기다리는 중 ✨</p></div>
+      </section>
+    </aside>
+  </main>
+
+</div>
+
+<div id="resultOverlay" class="result-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="resultTitle">
+  <div id="confetti" class="confetti-layer"></div>
+  <div class="result-card" id="resultCard">
+    <div class="result-star">🎉</div>
+    <p class="result-kicker">LUCKY WINNER!</p>
+    <h2 id="resultTitle">당첨을 축하해요!</h2>
+    <p id="resultSubtitle" class="result-subtitle">행운의 여신도 박수 치는 중 👏</p>
+    <div id="wonPrize" class="won-prize"></div>
+    <p id="resultDetails" class="result-details"></p>
+    <div id="soldOutNote" class="sold-out-note" hidden>🎟 이 상품은 모두 소진되어 다음 회차부터 빠집니다!</div>
+    <button id="overlayNext" class="btn btn-primary result-next">다음 참가자 ↻</button>
+    <small id="countdown">8초 후 자동 준비</small>
+  </div>
+</div>
+
+<div id="editOverlay" class="modal-backdrop" hidden aria-modal="true" role="dialog" aria-labelledby="editTitle">
+  <div class="editor-modal">
+    <div class="panel-heading"><h2 id="editTitle">⚙ 상품 명단·재고 관리</h2><button id="closeEditor" class="icon-close" aria-label="닫기">✕</button></div>
+    <p>상품별 등급(일반·고급·희귀·전설)을 선택하세요. 더 빠르게 흔들수록 높은 등급의 확률이 높아집니다. <strong>최고 붉은 구간은 일반 등급을 제외</strong>합니다(그 외 등급 재고가 있을 때). 상품 이름과 <strong>총 지급 가능 수량</strong>을 입력하세요. 비워 두면 무제한이에요. <strong>지급 완료</strong> 숫자를 수정하면 재고를 보정할 수도 있어요.</p>
+    <div class="editor-table-head"><span>상품 이름</span><span>등급</span><span>총 수량</span><span>지급 완료</span><span></span></div>
+    <div id="inventoryEditorRows" class="editor-rows"></div>
+    <div class="editor-secondary"><button id="addPrize" class="btn btn-outline btn-small">＋ 상품 추가</button><span>최대 16종 · 남은 수량 0이면 자동 제외</span></div>
+    <div id="editorHelp" class="editor-help" role="status">변경 후 '저장'을 눌러 적용하세요.</div>
+    <div class="editor-actions"><button id="resetIssued" class="btn btn-outline">↺ 지급량 초기화</button><button id="savePrizes" class="btn btn-primary">✓ 상품·재고 저장</button></div>
+    <div class="backup-actions"><button id="importTxt" class="btn btn-outline" type="button">↑ 등급별 TXT 불러오기</button><input id="importTxtFile" type="file" accept=".txt,text/plain" hidden><button id="exportTxt" class="btn btn-outline" type="button">↓ TXT 내보내기</button></div>
+    <p class="backup-note">TXT 한 줄 형식: <code>등급|상품명|총수량</code> (예: <code>3|키링|5</code>). 등급 1~4, 수량 생략 시 무제한. TXT 가져온 다음 <b>저장</b>을 눌러야 반영됩니다.</p>
+    <div class="backup-actions"><button id="exportPrizes" class="btn btn-outline" type="button">↓ 상품·재고 백업</button><button id="importPrizes" class="btn btn-outline" type="button">↑ 상품·재고 불러오기</button><input id="importPrizesFile" type="file" accept=".json,application/json" hidden></div>
+    <p class="backup-note">기기를 바꿀 때 백업 파일을 옮겨 불러올 수 있어요. 불러오면 현재 상품·재고를 교체하고 이전 당첨 기록은 초기화합니다.</p>
+    <div class="editor-reset"><button id="resetPrizes" class="link-btn muted">기본 상품으로 전체 교체</button></div>
+  </div>
+</div>
+
+<script src="roulette-core.js"></script>
+<script src="inventory-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
