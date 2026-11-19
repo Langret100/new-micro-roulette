@@ -19,7 +19,7 @@
       <span id="bleLive" class="ble-live" aria-live="polite" hidden>센서 대기 중</span>
     </div>
     <div class="floating-tools">
-      <button id="fullBtn" class="btn btn-ghost icon-only" type="button" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
+      <button id="fullBtn" class="btn btn-ghost icon-only" type="button" title="전체화면 전환" aria-label="전체화면 전환"><svg class="fullscreen-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5"/></svg></button>
       <button id="presentBtn" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="operatorPanel">⚙ 운영</button>
     </div>
   </div>
@@ -31,7 +31,7 @@
       <h1 id="mainTitle">캡슐을 흔들어 <em>행운</em>을 돌려요!</h1>
       <p class="lead" id="hint">마이크로비트를 흔들거나 룰렛을 손으로 드래그하세요.</p>
       <div class="wheel-stage" id="wheelStage">
-        <div id="shakeTimer" class="shake-timer" hidden aria-live="off">5</div>
+        <div id="shakeTimer" class="shake-timer" hidden aria-live="off">3</div>
         <div class="wheel-glow"></div>
         <div class="speed-trails" aria-hidden="true"></div>
         <div class="turbo-streaks" aria-hidden="true"></div>
@@ -74,7 +74,7 @@
         <div class="metric-row"><div><small>흔들기 횟수</small><strong id="shakeCount">0<span>회</span></strong></div><div><small>회전 속도</small><strong id="speedText">0.0<span>바퀴/초</span></strong></div></div>
         <div class="meter-label"><span>셰이크 파워</span><b id="intensityLabel">0%</b></div>
         <div class="meter"><div id="intensityBar"></div></div>
-        <div class="notice"><span>💡</span><p>시작 후 최대 5초! 최고 속도에 따라 등급별 당첨 확률이 달라집니다. 붉은 구간에 도달하면 다른 등급이 남아 있는 한 일반 등급은 제외됩니다.</p></div>
+        <div class="notice"><span>💡</span><p>시작 후 마지막 3초에 3·2·1 카운트다운! 최고 속도에 따라 등급별 당첨 확률이 달라집니다. 붉은 구간은 다른 등급이 남아 있는 한 일반 등급을 제외합니다.</p></div>
         <div class="ble-diagnostics"><strong>📡 실제 기기 수신 점검</strong><div id="bleDiagnostics" role="status">미연결 · 캡슐 연결 후 X/Y/Z 수치가 변하는지 확인하세요.</div></div>
       </section>
 
@@ -89,8 +89,10 @@
       <section class="panel tools-panel">
         <div class="panel-heading"><h2>운영 도구</h2></div>
         <div class="tool-buttons"><button id="testBtn" class="btn btn-secondary">🧪 가상 흔들기</button><button id="nextBtn" class="btn btn-outline">↻ 다음 참가자</button></div>
+        <div class="duration-line"><label for="spinDuration">⏱ 최대 흔들기·드래그 시간</label><select id="spinDuration" aria-describedby="durationHelp"><option value="3">3초</option><option value="4" selected>4초 (기본)</option><option value="5">5초</option><option value="6">6초</option><option value="7">7초</option><option value="8">8초</option><option value="9">9초</option><option value="10">10초</option></select></div>
+        <p id="durationHelp" class="duration-help">첫 1초는 숫자 없이 가속, 이어서 3·2·1. 변경 사항은 이 기기에 저장됩니다.</p>
         <label class="switch-line"><input id="autoNext" type="checkbox" checked><span>당첨 8초 후 자동으로 다음 차례</span></label>
-        <div class="sound-line"><label class="switch-line"><input id="soundToggle" type="checkbox" checked><span>효과음</span></label><button id="soundTest" class="link-btn">▶ 효과음 8종 점검</button></div>
+        <div class="sound-line"><label class="switch-line"><input id="soundToggle" type="checkbox" checked><span>효과음</span></label><button id="soundTest" class="link-btn">▶ 효과음 10종 점검</button></div>
         <p id="soundDiagnostic" class="sound-diagnostic" role="status">효과음 준비 전 · 소리 점검 버튼을 눌러 확인</p>
         <label class="volume-line" for="volumeSlider"><span>🔊 음량</span><input type="range" min="0" max="100" value="65" step="5" id="volumeSlider"><b id="volumeValue">65%</b></label>
         <div id="warning" class="warning" role="alert" hidden></div>
@@ -107,6 +109,22 @@
 
 <div id="resultOverlay" class="result-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="resultTitle">
   <div id="confetti" class="confetti-layer"></div>
+  <div id="legendSequence" class="legend-sequence" aria-hidden="true" hidden>
+    <div class="legend-dim-ring"></div>
+    <div class="legend-ambient"></div>
+    <div class="legend-light-rays"></div>
+    <div class="legend-emblem">
+      <svg viewBox="0 0 120 120" fill="none" aria-hidden="true" focusable="false">
+        <circle cx="60" cy="60" r="54" stroke="currentColor" stroke-opacity=".42" stroke-width=".7"/>
+        <circle cx="60" cy="60" r="43" stroke="currentColor" stroke-opacity=".7" stroke-width="1"/>
+        <path d="M60 9 68 44 103 60 68 76 60 111 52 76 17 60 52 44Z" fill="currentColor" fill-opacity=".13" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M60 34 78 60 60 86 42 60Z" fill="currentColor" fill-opacity=".38" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M60 34V86M42 60H78" stroke="currentColor" stroke-width=".75" stroke-opacity=".65"/>
+      </svg>
+    </div>
+    <div class="legend-intro-copy"><span>ULTRA RARE REWARD</span><strong>전설</strong><small>LEGENDARY</small></div>
+    <div class="legend-floor-light"></div>
+  </div>
   <div class="result-card" id="resultCard">
     <div class="result-star">🎉</div>
     <p class="result-kicker">LUCKY WINNER!</p>

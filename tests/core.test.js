@@ -13,7 +13,7 @@ for(const n of [2,3,4,8,12,16]){
 assert.deepEqual(sanitizePrizes('사탕\n\n 스티커\r\n 선물 '),['사탕','스티커','선물']);
 assert.throws(()=>sanitizePrizes('only one'));
 assert.throws(()=>sanitizePrizes(Array.from({length:17},(_,i)=>String(i)).join('\n')));
-assert.throws(()=>sanitizePrizes('A'.repeat(25)+'\nb'));
+assert.throws(()=>sanitizePrizes('A'.repeat(49)+'\nb'));
 const stable=new ShakeDetector();
 for(let i=0;i<120;i++) {
   const t=i*20;
@@ -113,4 +113,20 @@ assert.equal(timed.tick(.02,5360),true);
 assert.equal(timed.state,'result');
 assert.equal(timed.resultIndex,2);
 assert.equal(winningIndex(timed.angle,4),2);
-console.log('PASS: weighted grade selection / max 5-second shake / 260ms braking');
+console.log('PASS: weighted grade selection / max 4-second shake / 260ms braking');
+
+// Configurable duration must carry through reset and cap within supported range.
+for(const [requested,expected] of [[3000,3000],[4000,4000],[5000,5000],[8000,8000],[10000,10000],[1000,3000],[50000,10000]]){
+ const clock=new WheelGame(4,{maxShakeMs:requested});
+ assert.equal(clock.maxShakeMs,expected);
+ clock.beginManual(0,100);
+ assert.equal(clock.state,'spinning');
+ clock.moveManual(.05,110);
+ clock.tick(.016,100+expected-1);
+ assert.equal(clock.state,'spinning');
+ clock.tick(.016,100+expected+1);
+ assert.equal(clock.state,'decelerating');
+ clock.reset(4);
+ assert.equal(clock.maxShakeMs,expected,'reset must preserve chosen duration');
+}
+console.log('PASS: configured 3/4/5/8/10 seconds; cap and reset retention');

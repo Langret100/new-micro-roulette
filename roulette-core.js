@@ -18,7 +18,7 @@
   function sanitizePrizes(raw) {
     const entries = String(raw).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     if (entries.length < 2 || entries.length > 16) throw new Error('상품을 2~16개 입력해 주세요.');
-    if (entries.some(s => Array.from(s).length > 24)) throw new Error('상품 이름은 24글자 이내로 입력해 주세요.');
+    if (entries.some(s => Array.from(s).length > 48)) throw new Error('상품 이름은 48글자 이내로 입력해 주세요.');
     return entries;
   }
 
@@ -107,7 +107,7 @@
   class WheelGame {
     constructor(n, opts={}) {
       this.inactivityMs=opts.inactivityMs??200;
-      this.maxShakeMs=5000;
+      this.maxShakeMs=clamp(Math.round(Number(opts.maxShakeMs)||4000),3000,10000);
       this.decelMs=260;
       this.manualCoastMs=2000;
       this.onChoose=null;

@@ -13,7 +13,7 @@
   function normalizedEntry(raw, fallbackId) {
     if (!raw || typeof raw !== 'object') throw new Error('상품 데이터가 잘못되었습니다.');
     const name = String(raw.name || '').trim();
-    if (!name || Array.from(name).length > 24) throw new Error('상품 이름은 1~24글자로 입력해 주세요.');
+    if (!name || Array.from(name).length > 48) throw new Error('상품 이름은 1~48글자로 입력해 주세요.');
     const limit = raw.limit === '' || raw.limit === null || raw.limit === undefined ? null : Number(raw.limit);
     const issued = raw.issued === '' || raw.issued === undefined || raw.issued === null ? 0 : Number(raw.issued);
     if (limit !== null && (!Number.isInteger(limit) || limit < 0 || limit > MAX_STOCK)) throw new Error('총 수량은 0~99,999 사이의 정수로 입력하거나 무제한으로 비워 주세요.');

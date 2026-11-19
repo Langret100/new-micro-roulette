@@ -9,6 +9,7 @@
   const PERIOD = 'e95dfb24-251d-470a-a062-fa1922dfa9a8';
   const DEFAULTS = ['반짝 스티커','미니 노트','젤리','캐릭터 연필','키링','초콜릿','깜짝 선물','한 번 더'];
   const GRADE_NAMES=['','일반','고급','희귀','전설'];
+  const SOUND_FILES=['start','shake','tick','boost','reveal','win','soldout','brake','countdown','legendary'];
   const COLORS=['#8760EA','#FF82B8','#FFCD60','#45D5CD','#AD78EF','#FF9882','#63C7F9','#B3DE76','#F6B75B','#C38BF7','#5CCCA2','#E994C8','#90A8FE','#EEC267','#6ED8E1','#FB9393'];
   const $=id=>document.getElementById(id);
   let storageError=false;
@@ -26,15 +27,17 @@
   if(!Array.isArray(history))history=[];
   history=history.filter(x=>x && typeof x.prize==='string' && Number.isFinite(x.time)).slice(0,100);
   let autoNext=load('capsule-auto',true)!==false;
+  const readDuration=v=>Number.isInteger(Number(v))&&Number(v)>=3&&Number(v)<=10?Number(v):4;
+  let spinDurationSec=readDuration(load('capsule-spin-duration',4));
   // New display mode defaults to a full-screen wheel. Legacy panel preference is not carried over.
   let presentation=load('capsule-stage-v3',true)!==false;
   let soundOn=load('capsule-sound',true)!==false;
   let volume=clamp(Number(load('capsule-volume',65))||0,0,100);
   let roundSlots=Stock.available(inventory);
-  let game=new WheelGame(Math.max(1,roundSlots.length));
+  let game=new WheelGame(Math.max(1,roundSlots.length),{maxShakeMs:spinDurationSec*1000});
   let device=null,characteristic=null,isConnecting=false,isTesting=false,demoRound=false,testTimer=null;
   let blePackets=0,bleLastPacketAt=0,bleRateAt=0,bleRateCount=0,bleRate=0,bleWatchdog=null,bleStreamWarned=false;
-  let autoTimer=null,countdownTimer=null,stingerTimer=null,lastFrameAt=performance.now(),lastDrawAngle=NaN,lastUiAt=-Infinity;
+  let autoTimer=null,countdownTimer=null,stingerTimer=null,legendTimer=null,lastFrameAt=performance.now(),lastDrawAngle=NaN,lastUiAt=-Infinity;
   let lastPointed=-1,lastTickAt=0,lastPlayedShake=0,lastPowerTier=0,lastPowerMessage=0,revealed=false;
   let pendingReveal=false,bonusQueued=false,bonusRound=false;
   let manualPointer=null;
@@ -73,8 +76,8 @@
       }catch(_){showWarning('오디오 시작에 실패했습니다. 화면을 터치한 뒤 소리 점검을 실행해 주세요.');}
     }
     async loadClips(){
-      $('soundDiagnostic').textContent='🔄 효과음 8종 준비 중…';
-      await Promise.all(['start','shake','tick','boost','reveal','win','soldout','brake'].map(async name=>{
+      $('soundDiagnostic').textContent=`🔄 효과음 ${SOUND_FILES.length}종 준비 중…`;
+      await Promise.all(SOUND_FILES.map(async name=>{
         try{
           const response=await fetch('sounds/'+name+(name==='brake'?'.wav':'.mp3'),{cache:'force-cache'});
           if(!response.ok)throw new Error('missing: '+name);
@@ -84,19 +87,19 @@
         }catch(_){this.errors.add(name);}
       }));
       $('soundDiagnostic').textContent=this.errors.size
-        ?`⚠ 효과음 ${this.buffers.size}/8 준비 · 누락: ${Array.from(this.errors).join(', ')}`
-        :'✓ 효과음 8/8 파일 정상 · 버튼으로 각각 시연 가능';
+        ?`⚠ 효과음 ${this.buffers.size}/${SOUND_FILES.length} 준비 · 누락: ${Array.from(this.errors).join(', ')}`
+        :`✓ 효과음 ${SOUND_FILES.length}/${SOUND_FILES.length} 파일 정상 · 버튼으로 각각 시연 가능`;
     }
     setVolume(n){if(this.master)this.master.gain.value=n/100*.72;}
     stopAll(){
       for(const source of this.activeSources){try{source.stop();}catch(_){}}
     }
-    play(name,loudness=1){
+    play(name,loudness=1,rate=1){
       if(!soundOn || !this.ctx || this.ctx.state!=='running')return false;
       const buffer=this.buffers.get(name);
       if(!buffer)return false;
       const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();
-      source.buffer=buffer;gain.gain.value=clamp(loudness,0,1);
+      source.buffer=buffer;source.playbackRate.value=clamp(rate,.65,1.35);gain.gain.value=clamp(loudness,0,1);
       source.connect(gain);gain.connect(this.master);
       this.activeSources.add(source);
       source.onended=()=>{this.activeSources.delete(source);source.disconnect();gain.disconnect();};
@@ -108,10 +111,16 @@
   }
   const audio=new GameAudio();
   audio.prepare().catch(()=>{});
-  const SOUND_LABELS={start:'출발',shake:'흔들기',tick:'룰렛 클릭',boost:'가속',reveal:'두구두구',win:'당첨 팡파르',soldout:'품절',brake:'끼익 브레이크'};
-  let soundTestBusy=false, soundTestToken=0, lastRevealSoundAt=-Infinity;
+  const SOUND_LABELS={start:'출발',shake:'흔들기',tick:'룰렛 클릭',boost:'가속',reveal:'두구두구',win:'당첨 팡파르',soldout:'품절',brake:'끼익 브레이크',countdown:'3·2·1 묵직한 퉁',legendary:'전설 전용 시네마틱'};
+  let soundTestBusy=false, soundTestToken=0, lastRevealSoundAt=-Infinity, lastCountdownSecond=null;
 
   $('autoNext').checked=autoNext;
+  $('spinDuration').value=String(spinDurationSec);
+  function refreshDurationHelp(){
+    const lead=spinDurationSec-3;
+    $('durationHelp').textContent=`${lead?`처음 ${lead}초는 숫자 없이 가속, 이후`:'시작 즉시'} 3·2·1 카운트다운 · 전체 ${spinDurationSec}초 · 이 기기에 저장`;
+  }
+  refreshDurationHelp();
   document.body.classList.toggle('presentation-mode',presentation);
   document.body.classList.toggle('drawer-open',!presentation);
   $('operatorBackdrop').hidden=presentation;
@@ -169,7 +178,7 @@
     if(phase==='spinning'){
       $('mainTitle').innerHTML='더 흔들면 <em>더 빠르게!</em>';
       $('hint').textContent='흔드는 힘이 룰렛을 움직여요!';
-      $('stageStatus').textContent='🎡 5초 안에 최대한 빠르게 흔들어 보세요!';
+      $('stageStatus').textContent='🎡 첫 1초는 자유롭게! 이후 3·2·1 카운트다운!';
     }else if(!roundSlots.length){
       $('mainTitle').innerHTML='오늘의 상품 <em>모두 소진!</em>';
       $('hint').textContent='운영 도구에서 상품 수량을 추가해 주세요.';
@@ -227,6 +236,13 @@
     const size=Math.max(2,Math.round(canvas.getBoundingClientRect().width));
     const ratio=Math.min(window.devicePixelRatio||1,2);
     if(canvasSize!==size||dpr!==ratio){canvasSize=size;dpr=ratio;canvas.width=Math.round(size*dpr);canvas.height=Math.round(size*dpr);lastDrawAngle=NaN;}
+    const stageRect=$('wheelStage').getBoundingClientRect();
+    const frameRect=frameEl.getBoundingClientRect();
+    const localCx=(frameRect.left-stageRect.left)+(frameRect.width/2);
+    const localCy=(frameRect.top-stageRect.top)+(frameRect.height/2);
+    $('wheelStage').style.setProperty('--wheel-center-x', `${localCx}px`);
+    $('wheelStage').style.setProperty('--wheel-center-y', `${localCy}px`);
+    $('wheelStage').style.setProperty('--wheel-size', `${frameRect.width}px`);
     drawWheel();
   }
   function fitLabel(s,n){const max=n>12?5:n>9?7:n>7?9:12;const letters=Array.from(s);return letters.length>max?letters.slice(0,max-1).join('')+'…':s;}
@@ -320,20 +336,36 @@
     $('intensityBar').style.width=`${intensity}%`;
     renderSpeedTower();
     if(game.state==='spinning'){
-      const seconds=Math.max(1,Math.ceil((game.maxShakeMs-(now-game.startedAt))/1000));
-      $('shakeTimer').textContent=String(seconds);
-      $('shakeTimer').hidden=false;
+      const elapsed=Math.max(0,now-game.startedAt);
+      const timer=$('shakeTimer');
+      // Only the final three seconds display 3, 2, 1 and play an impact.
+      // e.g., 4s: blank 1s + 3/2/1; 5s: blank 2s + 3/2/1.
+      // Each countdown numeral triggers exactly one hit, even on slow frames.
+      if(elapsed<game.maxShakeMs-3000){
+        timer.hidden=true;
+      }else{
+        const seconds=Math.max(1,Math.min(3,Math.ceil((game.maxShakeMs-elapsed)/1000)));
+        if(lastCountdownSecond!==seconds){
+          lastCountdownSecond=seconds;
+          timer.classList.remove('beat');void timer.offsetWidth;timer.classList.add('beat');
+          // One percussion hit per newly shown integer; no repeats per frame.
+          audio.play('countdown',.77+(3-seconds)*.045,1.0-(3-seconds)*.045);
+        }
+        timer.textContent=String(seconds);
+        timer.hidden=false;
+      }
     }else if(game.state==='decelerating'){
       $('shakeTimer').textContent='빙글~';$('shakeTimer').hidden=game.brakeTriggered || game.decelMs<2000;
     }else{$('shakeTimer').hidden=true;}
     $('peakSpeed').textContent=String(game.peakPower||0);
   }
-  function cancelTimers(){if(autoTimer!==null)clearTimeout(autoTimer);autoTimer=null;if(countdownTimer!==null)clearInterval(countdownTimer);countdownTimer=null;if(stingerTimer!==null)clearTimeout(stingerTimer);stingerTimer=null;}
+  function cancelTimers(){if(autoTimer!==null)clearTimeout(autoTimer);autoTimer=null;if(countdownTimer!==null)clearInterval(countdownTimer);countdownTimer=null;if(stingerTimer!==null)clearTimeout(stingerTimer);stingerTimer=null;if(legendTimer!==null)clearTimeout(legendTimer);legendTimer=null;}
   function clearTest(){if(testTimer!==null)clearInterval(testTimer);testTimer=null;isTesting=false;$('testBtn').disabled=!roundSlots.length;}
   function nextRound(){
     if(pendingReveal)return;
     $('nextBtn').disabled=false;
     cancelTimers();clearTest();manualPointer=null;$('resultOverlay').hidden=true;
+    $('resultOverlay').classList.remove('is-legendary','legend-intro','legend-revealed');$('legendSequence').hidden=true;
     bonusRound=bonusQueued;
     bonusQueued=false;
     roundSlots=Stock.available(inventory).filter(item=>!bonusRound||item.name.trim()!=='한 번 더');
@@ -346,7 +378,7 @@
     };
     // Public starting position is randomized BEFORE the player shakes, never after a prize is picked.
     game.angle=secureRandom()*TAU;
-    demoRound=false;revealed=false;lastPlayedShake=0;lastPowerTier=0;lastPowerMessage=0;lastPointed=-1;
+    demoRound=false;revealed=false;lastPlayedShake=0;lastPowerTier=0;lastPowerMessage=0;lastPointed=-1;lastCountdownSecond=null;
     $('wheelStage').classList.remove('is-spinning','is-fast','is-turbo','is-finishing','comic-braking','is-coasting');
     $('comboBadge').hidden=true;$('reaction').textContent='';$('shakeTimer').hidden=true;
     showWarning(!roundSlots.length?'보상 명단이 비었거나 모두 소진되었습니다. 운영 → 상품 관리에서 등급별 보상을 입력하세요.':storageError?'⚠ 브라우저 저장이 차단되어 지급량이 보존되지 않습니다. 저장소 설정을 확인해 주세요.':'');
@@ -358,9 +390,10 @@
     }
     drawWheel();refreshLive(performance.now()+100);renderPrizes();
   }
-  function confetti(){
-    const frag=document.createDocumentFragment(),palette=['#ffcf60','#ff81be','#64e8d0','#b9a0ff','#ffffff'];
-    for(let i=0;i<(window.innerWidth<640?65:110);i++){
+  function confetti(legendary=false){
+    const frag=document.createDocumentFragment(),palette=legendary?['#fae8b2','#e5b95e','#fff9d8','#c9953a']:['#ffcf60','#ff81be','#64e8d0','#b9a0ff','#ffffff'];
+    const count=legendary?(window.innerWidth<640?28:45):(window.innerWidth<640?65:110);
+    for(let i=0;i<count;i++){
       const piece=document.createElement('span');piece.className='confetti';
       piece.style.left=`${Math.random()*100}%`;piece.style.background=palette[i%palette.length];
       piece.style.animationDelay=`${Math.random()*.6}s`;piece.style.animationDuration=`${2+Math.random()*1.6}s`;
@@ -370,6 +403,81 @@
     }
     $('confetti').replaceChildren(frag);
   }
+  function beginResultNextTimer(bonus){
+    $('countdown').hidden=!autoNext;
+    $('overlayNext').textContent=bonus?'같은 참가자 다시 돌리기':'다음 참가자 ↻';
+    if(!autoNext)return;
+    const seconds=bonus?5:8,deadline=Date.now()+seconds*1000;
+    countdownTimer=setInterval(()=>{
+      $('countdown').textContent=bonus?`${Math.max(0,Math.ceil((deadline-Date.now())/1000))}초 후 같은 참가자 재도전`:`${Math.max(0,Math.ceil((deadline-Date.now())/1000))}초 후 자동으로 다음 차례`;
+    },250);
+    $('countdown').textContent=bonus?'5초 후 같은 참가자 재도전':'8초 후 자동으로 다음 차례';
+    autoTimer=setTimeout(nextRound,seconds*1000);
+  }
+  // Fit the complete prize title into at most two centered lines. Prefer whitespace
+  // boundaries and only split a single long unspaced word as a last resort.
+  let prizeNameToDisplay='';
+  function fitResultPrizeName(source){
+    const el=$('wonPrize');
+    const full=String(source||'').replace(/\s+/gu,' ').trim()||'상품';
+    el.setAttribute('aria-label',`당첨 상품: ${full}`);
+    el.title=full;
+    el.style.removeProperty('--prize-font');
+    const natural=parseFloat(getComputedStyle(el).fontSize)||42;
+    const font=getComputedStyle(el);
+    const words=full.split(' ');
+    const candidates=[[full]];
+    for(let i=1;i<words.length;i++)candidates.push([words.slice(0,i).join(' '),words.slice(i).join(' ')]);
+    // When a single unspaced item cannot fit, allow an emergency two-line
+    // grapheme split rather than clipping it mid-character.
+    if(words.length===1){
+      const glyphs=typeof Intl!=='undefined'&&Intl.Segmenter
+        ?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(full),part=>part.segment)
+        :Array.from(full);
+      if(glyphs.length>1){
+        for(let i=1;i<glyphs.length;i++)candidates.push([glyphs.slice(0,i).join(''),glyphs.slice(i).join('')]);
+      }
+    }
+    const canvas=document.createElement('canvas');
+    const ctx=canvas.getContext('2d');
+    const ordered=(size)=>{
+      if(!ctx)return candidates;
+      ctx.font=`${font.fontWeight} ${size}px ${font.fontFamily}`;
+      const measure=t=>ctx.measureText(t).width;
+      // One line only when it really fits; otherwise balance two word groups.
+      return [candidates[0],...candidates.slice(1).sort((a,b)=>
+        Math.max(...a.map(measure))-Math.max(...b.map(measure))||
+        Math.abs(measure(a[0])-measure(a[1]))-Math.abs(measure(b[0])-measure(b[1])))];
+    };
+    function mount(lines,size){
+      el.style.setProperty('--prize-font',`${size}px`);
+      el.replaceChildren(...lines.map(line=>{
+        const span=document.createElement('span');span.className='prize-line';span.textContent=line;return span;
+      }));
+      el.dataset.lines=String(lines.length);
+      return Array.from(el.children).every(span=>span.scrollWidth<=span.clientWidth+1);
+    }
+    let didFit=false;
+    // The font only gets smaller if neither a one-line nor a balanced two-line
+    // layout can fit; no line may exceed the card interior width.
+    for(let size=natural;size>=11;size-=.75){
+      for(const candidate of ordered(size)){
+        if(mount(candidate,size)){didFit=true;break;}
+      }
+      if(didFit)break;
+    }
+    if(!didFit){
+      const best=ordered(11).at(1)||candidates[0];
+      mount(best,11);
+      el.classList.add('prize-fit-limit');
+    }else el.classList.remove('prize-fit-limit');
+  }
+  let prizeResizeRaf=0;
+  window.addEventListener('resize',()=>{
+    if($('resultOverlay').hidden||!prizeNameToDisplay)return;
+    cancelAnimationFrame(prizeResizeRaf);
+    prizeResizeRaf=requestAnimationFrame(()=>fitResultPrizeName(prizeNameToDisplay));
+  });
   function finishRound(){
     pendingReveal=false;
     $('nextBtn').disabled=false;
@@ -387,30 +495,43 @@
     const bonus=!demoRound && !bonusRound && prize.name.trim()==='한 번 더'
       && roundSlots.some(item=>item.name.trim()!=='한 번 더');
     bonusQueued=bonus;
+    const legendary=Number(prize.grade)===4;
+    const cinematic=legendary && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const subtitles=['운이 좋으셨는데요? 👀','쉿! 행운이 편을 들어줬어요 🤫','와우! 오늘 주인공 등장! ⭐','흔들기의 승리! 💪','룰렛도 깜짝 놀란 결과! 🥳'];
-    $('resultTitle').textContent=bonus?'한 번 더! 보너스 찬스!':'짜잔! 당첨입니다!';
-    $('resultSubtitle').textContent=bonus?'행운의 룰렛이 한 판 더 선물했어요! 🎉':subtitles[history.length%subtitles.length];
-    $('wonPrize').textContent='🎁 '+prize.name;
+    $('resultTitle').textContent=legendary?'전설 등급 획득':bonus?'한 번 더! 보너스 찬스!':'짜잔! 당첨입니다!';
+    $('resultSubtitle').textContent=legendary?'오직 특별한 순간에 만나는 보상':bonus?'행운의 룰렛이 한 판 더 선물했어요! 🎉':subtitles[history.length%subtitles.length];
+    $('resultCard').querySelector('.result-kicker').textContent=legendary?'LEGENDARY · TIER IV':'LUCKY WINNER!';
+    $('resultCard').querySelector('.result-star').textContent=legendary?'✦':'🎉';
+    prizeNameToDisplay=prize.name; // Keep the full accessible original name for responsive refitting.
     $('resultDetails').textContent=`${GRADE_NAMES[prize.grade||1]} 등급 · 최고 속도 ${game.peakPower}%`+(demoRound?' · 🧪 연습 회차(재고 차감 없음)':bonus?' · 🎡 같은 참가자 보너스 찬스':game.manual?' · 손으로 돌리기':` · ${game.roundShakes}번 흔들기`);
     $('soldOutNote').hidden=!soldOut;
-    $('resultOverlay').hidden=false;
-    $('resultCard').classList.remove('pop-in');void $('resultCard').offsetWidth;$('resultCard').classList.add('pop-in');
+    const overlay=$('resultOverlay'),card=$('resultCard');
+    cancelTimers();
+    overlay.hidden=false;
+    overlay.classList.toggle('is-legendary',legendary);
+    overlay.classList.toggle('legend-intro',cinematic);
+    overlay.classList.toggle('legend-revealed',legendary&&!cinematic);
+    $('legendSequence').hidden=!cinematic;
+    // Measure only once the overlay has a real width; hidden elements report 0px.
+    fitResultPrizeName(prizeNameToDisplay);
+    card.classList.remove('pop-in');
     $('wheelStage').classList.remove('is-spinning','is-fast','is-turbo','is-finishing','comic-braking','is-coasting');
     $('comboBadge').hidden=true;
-    setHeadline('result');confetti();burst();audio.play('win',1);
-    cancelTimers();
-    if(soldOut)stingerTimer=setTimeout(()=>audio.play('soldout',.5),1250);
-    clearTest();$('countdown').hidden=!autoNext;
-    $('overlayNext').textContent=bonus?'🎡 같은 참가자 다시 돌리기':'다음 참가자 ↻';
-    if(autoNext){
-      const seconds=bonus?5:8;
-      const deadline=Date.now()+seconds*1000;
-      countdownTimer=setInterval(()=>{
-        $('countdown').textContent=bonus?`${Math.max(0,Math.ceil((deadline-Date.now())/1000))}초 후 같은 참가자 재도전`:`${Math.max(0,Math.ceil((deadline-Date.now())/1000))}초 후 자동으로 다음 차례`;
-      },250);
-      $('countdown').textContent=bonus?'5초 후 같은 참가자 재도전':'8초 후 자동으로 다음 차례';
-      autoTimer=setTimeout(nextRound,seconds*1000);
-    }
+    setHeadline('result');burst();clearTest();
+    const showPrize=()=>{
+      if(overlay.hidden||game.state!=='result')return;
+      overlay.classList.remove('legend-intro');
+      if(legendary)overlay.classList.add('legend-revealed');
+      void card.offsetWidth;card.classList.add('pop-in');
+      confetti(legendary);
+      audio.play('win',legendary?.65:1);
+      if(soldOut)stingerTimer=setTimeout(()=>audio.play('soldout',.48),1250);
+      beginResultNextTimer(bonus);
+    };
+    if(cinematic){
+      audio.play('legendary',.9);
+      legendTimer=setTimeout(()=>{legendTimer=null;showPrize();},1550);
+    }else showPrize();
   }
   function onSample(x,y,z,now=performance.now()){
     if(!$('editOverlay').hidden||game.manual||game.state==='result'||!roundSlots.length)return;
@@ -420,7 +541,7 @@
     if(previousState==='ready'&&game.state==='spinning'){
       soundTestToken++;
       setHeadline('spinning');$('wheelStage').classList.add('is-spinning');
-      showReaction(demoRound?'🧪 연습 출발!':'🎡 출발~!');burst();audio.play('start',.8);
+      showReaction(demoRound?'연습도 실전처럼!':'좋아, 템포 올려!');burst();audio.play('start',.8);
       if(demoRound)$('stageStatus').textContent='🧪 연습 중! 당첨되어도 재고는 그대로예요';
     }
     if(game.state!=='spinning')return;
@@ -436,7 +557,7 @@
     const newTier=game.velocity>31?3:game.velocity>23?2:game.velocity>13?1:0;
     if(newTier>lastPowerTier && now-lastPowerMessage>550){
       lastPowerTier=newTier;lastPowerMessage=now;
-      const words=['','⚡ 이거 완전 에너지 폭발!','🚀 우주로 날아가겠어!','🔥 전설의 셰이크 마스터!'];
+      const words=['','속도 상승 ↑','좋아, 한 단계 더!','최고 출력! 지금이야!'];
       showReaction(words[newTier]);if(newTier>=2)audio.play('boost',.55);
     }
     if(report.active){
@@ -467,7 +588,7 @@
       m.active=true;
       soundTestToken++;
       setHeadline('spinning');$('wheelStage').classList.add('is-spinning');
-      showReaction('🎡 슥~ 돌려봐!');burst();audio.play('start',.8);
+      showReaction('손끝에서 스타트!');burst();audio.play('start',.8);
       $('stageStatus').textContent='🖐 드래그로 회전 중! 손을 떼면 당첨!';
     }
     e.preventDefault();
@@ -490,7 +611,7 @@
   function startManualCoast(){
     $('wheelStage').classList.add('is-coasting');
     $('stageStatus').textContent='🎡 관성으로 빙글빙글… 곧 당첨!';
-    showReaction('🌀 빙글~ 빙글~!');
+    showReaction('아직 회전 중…');
     // The short, full-speed brake fires immediately; a 2 s coast brakes near its end.
     if(game.decelMs<2000)startComicBrake();
   }
@@ -538,7 +659,7 @@
         $('nextBtn').disabled=true;
         $('wheelStage').classList.remove('is-spinning','is-fast','is-turbo');
         $('wheelStage').classList.add('is-finishing');
-        showReaction('🎯 여기서 멈췄다!');burst();
+        showReaction('행운이 멈춘 순간!');burst();
         $('stageStatus').textContent='🎁 당첨 상품 공개!';
         audio.play('tick',.72);
         finishRound();
@@ -573,7 +694,9 @@
     let picked=null;
     try{
       picked=await navigator.bluetooth.requestDevice({
-        filters:[{namePrefix:'BBC micro:bit'},{namePrefix:'micro:bit'}],
+        // Do not filter by advertised device name: mobile OS and firmware vary.
+        // The chosen device must still expose the official micro:bit accelerometer service.
+        acceptAllDevices:true,
         optionalServices:[SERVICE]
       });
       // Old chooser attempts must not retain event subscriptions.
@@ -648,7 +771,7 @@
   }
   function editorRow(row){
     const div=document.createElement('div');div.className='editor-row';div.dataset.id=row.id;
-    const name=document.createElement('input');name.type='text';name.className='entry-name';name.maxLength=24;name.value=row.name;name.placeholder='상품명';name.setAttribute('aria-label','상품명');
+    const name=document.createElement('input');name.type='text';name.className='entry-name';name.maxLength=48;name.value=row.name;name.placeholder='상품명';name.setAttribute('aria-label','상품명');
     const grade=document.createElement('select');grade.className='entry-grade';grade.setAttribute('aria-label','보상 등급');
     for(let g=1;g<=4;g++){const opt=document.createElement('option');opt.value=String(g);opt.textContent=GRADE_NAMES[g];grade.append(opt);}grade.value=String(row.grade||1);
     const limit=document.createElement('input');limit.type='number';limit.className='entry-limit';limit.inputMode='numeric';limit.min='0';limit.max=String(Stock.MAX_STOCK);limit.step='1';limit.placeholder='무제한';limit.value=row.limit===null?'':String(row.limit);limit.setAttribute('aria-label','총 지급 가능 수량, 비우면 무제한');
@@ -700,6 +823,19 @@
     catch(_){showWarning('전체 화면 기능을 사용할 수 없습니다.');}
   });
   $('autoNext').addEventListener('change',e=>{autoNext=e.target.checked;save('capsule-auto',autoNext);});
+  $('spinDuration').addEventListener('change',e=>{
+    if(game.state==='spinning'||game.state==='decelerating'||pendingReveal||isTesting){
+      e.target.value=String(spinDurationSec);
+      showWarning('진행 중에는 시간을 바꿀 수 없습니다. 이번 회차가 끝난 뒤 설정해 주세요.');
+      return;
+    }
+    spinDurationSec=readDuration(e.target.value);
+    e.target.value=String(spinDurationSec);
+    game.maxShakeMs=spinDurationSec*1000;
+    save('capsule-spin-duration',spinDurationSec);
+    refreshDurationHelp();
+    showWarning('');
+  });
   $('soundToggle').addEventListener('change',e=>{soundOn=e.target.checked;save('capsule-sound',soundOn);if(soundOn)audio.unlock();else{soundTestToken++;audio.stopAll();$('soundDiagnostic').textContent='🔇 음소거 중';}});
   $('volumeSlider').addEventListener('input',e=>{volume=+e.target.value;$('volumeValue').textContent=volume+'%';audio.setVolume(volume);save('capsule-volume',volume);});
   $('soundTest').addEventListener('click',async()=>{
@@ -710,18 +846,18 @@
     button.disabled=true;
     try{
       await audio.unlock();if(audio.loading)await audio.loading;
-      if(audio.buffers.size!==8){
+      if(audio.buffers.size!==SOUND_FILES.length){
         showWarning('효과음 파일에 문제가 있습니다. ZIP의 sounds 폴더 전체를 업로드했는지 확인해 주세요. 누락: '+Array.from(audio.errors).join(', '));
         return;
       }
       showWarning('');
-      for(const name of ['start','shake','tick','boost','reveal','win','soldout','brake']){
+      for(const name of SOUND_FILES){
         if(soundTestToken!==token||game.state==='spinning')break;
-        $('soundDiagnostic').textContent=`🔊 효과음 점검 중: ${SOUND_LABELS[name]} (${['start','shake','tick','boost','reveal','win','soldout','brake'].indexOf(name)+1}/8)`;
+        $('soundDiagnostic').textContent=`🔊 효과음 점검 중: ${SOUND_LABELS[name]} (${SOUND_FILES.indexOf(name)+1}/${SOUND_FILES.length})`;
         audio.play(name,name==='shake'||name==='tick'?.55:.8);
         await new Promise(resolve=>setTimeout(resolve,Math.ceil((audio.buffers.get(name)?.duration||.3)*1000)+230));
       }
-      if(soundTestToken===token)$('soundDiagnostic').textContent='✓ 효과음 8종 시연 완료 · 모두 재생됨';
+      if(soundTestToken===token)$('soundDiagnostic').textContent=`✓ 효과음 ${SOUND_FILES.length}종 시연 완료 · 모두 재생됨`;
     }finally{soundTestBusy=false;button.disabled=false;}
   });
   $('editBtn').addEventListener('click',openEditor);
@@ -817,6 +953,19 @@
     }
   });
   window.addEventListener('resize',resizeCanvas,{passive:true});
+  // Stage effects follow the actual on-screen wheel center, including orientation / viewport changes.
+  if(window.ResizeObserver){
+    const wheelLayoutObserver=new ResizeObserver(()=>requestAnimationFrame(resizeCanvas));
+    wheelLayoutObserver.observe(frameEl);
+    wheelLayoutObserver.observe($('wheelStage'));
+  }
+  window.addEventListener('orientationchange',()=>requestAnimationFrame(resizeCanvas),{passive:true});
+  document.addEventListener('fullscreenchange',()=>{
+    const text=document.fullscreenElement?'전체화면 종료':'전체화면 전환';
+    $('fullBtn').setAttribute('aria-label',text);
+    $('fullBtn').setAttribute('title',text);
+    requestAnimationFrame(resizeCanvas);
+  });
   if(!bluetoothAvailable)showWarning('이 브라우저에서는 Web Bluetooth를 사용할 수 없습니다. 실제 기기 연결은 HTTPS 사이트의 Chrome/Edge를 이용해 주세요.');
   else if(storageError)showWarning('⚠ 브라우저 저장이 차단되어 지급량이 보존되지 않습니다. 저장소 설정을 확인해 주세요.');
   async function initializeBundledRewards(){
@@ -840,5 +989,5 @@
   requestAnimationFrame(()=>{resizeCanvas();requestAnimationFrame(frame);});
   window.__rouletteDiagnostics=()=>({state:game.state,winner:game.resultIndex,pendingReveal,prizes:roundSlots.map(x=>x.name),
     inventory:inventory.map(x=>({...x})),history:history.slice(),demo:demoRound,shakes:game.roundShakes,
-    speed:game.velocity,angle:game.angle,manual:game.manual,bonusRound,bonusQueued,connected:connected(),soundLoaded:audio.buffers.size,soundFailures:Array.from(audio.errors),soundTrace:audio.playTrace.slice(),soundContext:audio.ctx?.state||'not-started',peak:game.peakPower,remaining:game.startedAt===null?null:Math.max(0,5000-(performance.now()-game.startedAt)),tier:window.RouletteCore.rewardTier(game.peakPower),rewardSource});
+    speed:game.velocity,angle:game.angle,manual:game.manual,bonusRound,bonusQueued,connected:connected(),legendary:$('resultOverlay').classList.contains('is-legendary'),legendIntro:$('resultOverlay').classList.contains('legend-intro'),soundLoaded:audio.buffers.size,soundFailures:Array.from(audio.errors),soundTrace:audio.playTrace.slice(),soundContext:audio.ctx?.state||'not-started',peak:game.peakPower,remaining:game.startedAt===null?null:Math.max(0,game.maxShakeMs-(performance.now()-game.startedAt)),countdownText:$('shakeTimer').hidden?null:$('shakeTimer').textContent,maxShakeMs:game.maxShakeMs,durationSec:spinDurationSec,tier:window.RouletteCore.rewardTier(game.peakPower),rewardSource});
 })();

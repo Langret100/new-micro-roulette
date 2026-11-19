@@ -532,3 +532,378 @@ body::before,.wheel-section::before{background:none!important;opacity:0!importan
 /* Keep the comic impact inside the wheel, away from the heading and countdown. */
 .comic-brake-burst{left:65%;top:49%;width:clamp(125px,20vw,250px);}
 @media(max-width:780px){.comic-brake-burst{left:62%;top:49%;width:clamp(112px,32vw,205px)}}
+
+
+/* ===== UI polish patch: align reaction / brake effects to actual wheel ===== */
+.wheel-stage{--wheel-center-x:50%;--wheel-center-y:50%;--wheel-size:min(92dvh,calc(100vw - 325px),1040px)}
+.reaction-bubble{
+  left:calc(var(--wheel-center-x) - var(--wheel-size) * .50) !important;
+  top:calc(var(--wheel-center-y) - var(--wheel-size) * .39) !important;
+  max-width:min(290px,32vw) !important;
+  padding:14px 18px 14px 18px !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03)) !important;
+  border:1px solid rgba(255,220,150,.34) !important;
+  border-left:4px solid #ffd56e !important;
+  box-shadow:0 14px 34px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius:16px !important;
+  color:#fff4d2 !important;
+  backdrop-filter:blur(14px) saturate(115%);
+  -webkit-backdrop-filter:blur(14px) saturate(115%);
+  text-shadow:0 2px 10px rgba(0,0,0,.35) !important;
+  font-size:clamp(14px,1.5vw,20px) !important;
+  line-height:1.3 !important;
+  letter-spacing:-.02em;
+}
+.reaction-bubble::before{
+  content:"LIVE REACTION";
+  display:block;
+  margin-bottom:4px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.18em;
+  color:#ffcf67;
+  opacity:.92;
+}
+@keyframes reaction-pop{
+  0%{opacity:0;transform:translateY(10px) scale(.94)}
+  15%{opacity:1;transform:translateY(0) scale(1.02)}
+  70%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-10px) scale(.98)}
+}
+.comic-brake-burst{
+  left:calc(var(--wheel-center-x) + var(--wheel-size) * .19) !important;
+  top:calc(var(--wheel-center-y) - var(--wheel-size) * .12) !important;
+  width:clamp(140px,18vw,240px) !important;
+}
+.skid{left:calc(var(--wheel-center-x) - var(--wheel-size) * .34) !important;top:calc(var(--wheel-center-y) + var(--wheel-size) * .15) !important;width:calc(var(--wheel-size) * .22) !important;height:calc(var(--wheel-size) * .06) !important;}
+.skid-b{left:calc(var(--wheel-center-x) - var(--wheel-size) * .28) !important;top:calc(var(--wheel-center-y) + var(--wheel-size) * .24) !important;width:calc(var(--wheel-size) * .17) !important;}
+.brake-smoke{left:calc(var(--wheel-center-x) - var(--wheel-size) * .25) !important;top:calc(var(--wheel-center-y) + var(--wheel-size) * .17) !important;width:calc(var(--wheel-size) * .10) !important;}
+.brake-smoke-b{left:calc(var(--wheel-center-x) - var(--wheel-size) * .13) !important;top:calc(var(--wheel-center-y) + var(--wheel-size) * .22) !important;width:calc(var(--wheel-size) * .075) !important;}
+@media(max-width:780px){
+  .reaction-bubble{
+    left:max(10px, calc(var(--wheel-center-x) - var(--wheel-size) * .46)) !important;
+    top:max(10px, calc(var(--wheel-center-y) - var(--wheel-size) * .43)) !important;
+    max-width:min(230px,58vw) !important;
+    padding:11px 13px !important;
+    font-size:13px !important;
+  }
+  .reaction-bubble::before{font-size:9px;letter-spacing:.14em}
+  .comic-brake-burst{
+    left:calc(var(--wheel-center-x) + var(--wheel-size) * .18) !important;
+    top:calc(var(--wheel-center-y) - var(--wheel-size) * .10) !important;
+    width:clamp(118px,34vw,175px) !important;
+  }
+}
+
+
+/* ===== Venue UI alignment & dark result screen patch ===== */
+/* All effects are anchored to the real wheel-frame rectangle, not the stage viewport. */
+.wheel-glow,.speed-trails,.turbo-streaks,.energy-halo{
+  position:absolute!important;
+  inset:auto!important;
+  left:var(--wheel-center-x)!important;
+  top:var(--wheel-center-y)!important;
+  margin:0!important;
+  translate:-50% -50%;
+  pointer-events:none;
+}
+.wheel-glow{width:calc(var(--wheel-size) * .73)!important;max-width:none!important;aspect-ratio:1}
+.speed-trails{width:calc(var(--wheel-size) * .97)!important;height:auto!important;max-width:none!important;max-height:none!important;aspect-ratio:1}
+.turbo-streaks{width:calc(var(--wheel-size) * 1.04)!important;aspect-ratio:1}
+.energy-halo{width:calc(var(--wheel-size) * 1.03)!important;aspect-ratio:1}
+.stage-burst{
+  left:var(--wheel-center-x)!important;top:var(--wheel-center-y)!important;
+  width:calc(var(--wheel-size) * .58)!important;
+  height:calc(var(--wheel-size) * .58)!important;
+  border-width:clamp(7px,1.1vw,16px);
+}
+/* A typographic reaction, not an oval speech bubble or floating glass card. */
+.reaction-bubble{
+  left:max(12px,calc(var(--wheel-center-x) - var(--wheel-size) * .49))!important;
+  top:max(8px,calc(var(--wheel-center-y) - var(--wheel-size) * .49))!important;
+  max-width:min(310px,42vw)!important;
+  padding:0 0 8px 14px!important;
+  background:none!important;border:0!important;border-left:0!important;
+  border-radius:0!important;box-shadow:none!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  color:#fff9e8!important;
+  text-shadow:0 2px 10px #000,0 0 18px #000!important;
+  font-size:clamp(17px,1.6vw,24px)!important;
+  font-weight:900;letter-spacing:-.05em!important;
+  line-height:1.24!important;
+  white-space:normal;
+}
+.reaction-bubble::before{
+  content:'SHAKE ENERGY';display:block;
+  font-size:10px;letter-spacing:.22em;color:#fcd078;
+  margin:0 0 6px;font-weight:850;
+}
+.reaction-bubble::after{
+  content:'';display:block;width:58px;height:2px;
+  margin-top:9px;background:linear-gradient(90deg,#ffd56e,#ffc16600);
+}
+.reaction-bubble.appear{animation:reaction-clean 1.55s ease-out both}
+@keyframes reaction-clean{
+  0%{opacity:0;transform:translate3d(0,8px,0)}
+  14%,72%{opacity:1;transform:translate3d(0,0,0)}
+  100%{opacity:0;transform:translate3d(0,-6px,0)}
+}
+/* Fix the tiny fullscreen icon and its button surface being different visual centers on mobile. */
+.floating-dock #fullBtn{
+  display:grid!important;place-items:center!important;
+  width:44px!important;height:44px!important;min-height:44px!important;
+  flex:0 0 44px!important;padding:0!important;line-height:1!important;
+  border-radius:14px!important;text-align:center!important;
+  font-size:0!important;
+}
+#fullBtn .fullscreen-icon{
+  display:block!important;width:22px!important;height:22px!important;
+  flex:0 0 22px;align-self:center;justify-self:center;
+  margin:0!important;transform:none!important;
+}
+/* Present the win on a transparent BLACK scrim, not the old purple gradient. */
+#resultOverlay{
+  background:rgba(0,0,0,.82)!important;
+  backdrop-filter:blur(10px) brightness(.7)!important;
+  -webkit-backdrop-filter:blur(10px) brightness(.7)!important;
+}
+#resultCard{
+  background:linear-gradient(155deg,rgba(37,35,31,.97),rgba(11,11,13,.98) 74%)!important;
+  border-color:#f1d48c!important;
+  box-shadow:0 0 55px #eebf5e4a,0 0 0 7px #fff1a70c,0 20px 55px #000d!important;
+}
+#resultCard::before{border-color:#f5d68b5c!important}
+@media(max-width:780px){
+  .reaction-bubble{
+    left:max(9px,calc(var(--wheel-center-x) - var(--wheel-size) * .49))!important;
+    top:max(9px,calc(var(--wheel-center-y) - var(--wheel-size) * .50))!important;
+    font-size:clamp(13px,3.5vw,17px)!important;
+    max-width:min(190px,46vw)!important;
+    padding:0 0 4px 9px!important;
+  }
+  .reaction-bubble::before{font-size:8px;letter-spacing:.14em;margin-bottom:3px}
+  .reaction-bubble::after{margin-top:5px;width:36px}
+  .floating-dock #fullBtn{width:42px!important;height:42px!important;min-height:42px!important;flex-basis:42px!important;border-radius:13px!important}
+  #fullBtn .fullscreen-icon{width:20px!important;height:20px!important;flex-basis:20px}
+}
+@media(max-width:420px){
+  .reaction-bubble{font-size:13px!important;max-width:min(155px,45vw)!important}
+  .floating-dock #fullBtn{width:40px!important;height:40px!important;min-height:40px!important;flex-basis:40px!important}
+}
+@media(prefers-reduced-motion:reduce){.reaction-bubble.appear{animation:none!important;opacity:1}}
+
+/* Visible, compact comic lettering that fits on the wheel even in portrait. */
+.comic-brake-burst{width:clamp(175px,22vw,290px)!important;place-content:center;gap:2px;color:#fff9cf!important;-webkit-text-stroke:0!important}
+.comic-brake-burst b{white-space:nowrap;font-size:clamp(28px,3.25vw,43px)!important;letter-spacing:-.075em!important;text-shadow:2px 3px #4b1020,-1px -1px #4b1020,0 0 9px #681d10!important}
+.comic-brake-burst span{white-space:nowrap;font-size:clamp(10px,1.05vw,14px)!important;letter-spacing:.08em}
+@media(max-width:780px){
+  /* Above the rim instead of obscuring the top-left prize label / pointer. */
+  .reaction-bubble{top:max(12px,calc(var(--wheel-center-y) - var(--wheel-size) * .5 - 53px))!important}
+  .comic-brake-burst{width:clamp(158px,44vw,210px)!important}
+  .comic-brake-burst b{font-size:clamp(22px,5.6vw,31px)!important}
+  .comic-brake-burst span{font-size:10px!important}
+}
+
+/* Every changed 5–4–3–2–1 digit lands with its own deep percussion hit. */
+.shake-timer.beat{animation:timer-thump .25s cubic-bezier(.16,1.4,.25,1) both!important;}
+@keyframes timer-thump{
+  0%{scale:1.26;filter:brightness(1.6) drop-shadow(0 0 15px #ffc34c);}
+  45%{scale:.96;filter:brightness(1.2) drop-shadow(0 0 9px #ff9e39);}
+  100%{scale:1;filter:brightness(1);}
+}
+@media(prefers-reduced-motion:reduce){.shake-timer.beat{animation:none!important}}
+
+/* Local per-device spin duration; only visible in the operator drawer. */
+.duration-line{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;font-size:12px;font-weight:750;color:#efe7fc}
+.duration-line label{line-height:1.45;min-width:0}
+.duration-line select{border:1px solid #e7c45d75;border-radius:9px;background:#211a32;color:#fff1ca;padding:8px 10px;min-width:115px;font:inherit;font-weight:750;cursor:pointer;max-width:100%}
+.duration-line select:focus-visible{outline:2px solid #ffd879;outline-offset:2px}
+.duration-help{margin:7px 0 3px;color:#aeb6c9;font-size:11px;line-height:1.5}
+@media(max-width:365px){.duration-line{flex-wrap:wrap}.duration-line select{flex:1}}
+
+/* ===== Legendary (grade IV) reveal: refined cinematic, no third-party media ===== */
+#resultOverlay.is-legendary{
+  background:rgba(0,0,0,.91)!important;
+  backdrop-filter:blur(7px) brightness(.52)!important;
+  -webkit-backdrop-filter:blur(7px) brightness(.52)!important;
+}
+.legend-sequence{
+  position:absolute;inset:0;z-index:23;pointer-events:none;isolation:isolate;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  color:#ffe5a2;overflow:hidden;
+  background:radial-gradient(ellipse 46% 33% at 50% 46%,rgba(84,57,23,.32),rgba(0,0,0,0) 90%);
+}
+.legend-dim-ring{
+  position:absolute;top:50%;left:50%;width:min(90vw,72vh,670px);aspect-ratio:1;
+  border:1px solid rgba(242,202,120,.13);border-radius:50%;
+  transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,230,169,.025),0 0 90px #d59a4220;
+  animation:legend-ring-in 1.48s cubic-bezier(.13,.84,.23,1) both;
+}
+.legend-dim-ring::before,.legend-dim-ring::after{
+  content:"";position:absolute;border-radius:50%;inset:9%;border:1px solid #e9c78717;
+}
+.legend-dim-ring::after{inset:24%;border-color:#e9c78739}
+.legend-ambient{
+  position:absolute;left:50%;top:50%;width:min(96vw,82vh,780px);aspect-ratio:1;border-radius:50%;
+  transform:translate(-50%,-50%);background:radial-gradient(circle,#e4bd7035 0,#b1853b1c 30%,transparent 62%);
+  animation:legend-aura-in 1.55s ease-out both;
+}
+.legend-light-rays{
+  position:absolute;left:50%;top:50%;width:min(110vw,94vh,900px);aspect-ratio:1;border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:repeating-conic-gradient(from -7deg,rgba(255,232,164,.15) 0 1deg,transparent 1deg 23deg);
+  -webkit-mask-image:radial-gradient(circle,transparent 0 28%,#000 48%,transparent 70%);
+  mask-image:radial-gradient(circle,transparent 0 28%,#000 48%,transparent 70%);
+  animation:legend-rays-in 1.55s ease-out both;
+}
+.legend-emblem{
+  z-index:1;position:relative;width:clamp(102px,16vmin,156px);aspect-ratio:1;
+  color:#f4d18a;filter:drop-shadow(0 0 16px #c894467a);
+  animation:legend-emblem-in 1.55s cubic-bezier(.16,.89,.26,1) both;
+}
+.legend-emblem svg{display:block;width:100%;height:100%}
+.legend-intro-copy{z-index:1;position:relative;margin-top:22px;text-align:center;display:flex;align-items:center;flex-direction:column;gap:3px;animation:legend-copy-in 1.55s ease-out both}
+.legend-intro-copy span{font-size:clamp(9px,1.3vw,12px);letter-spacing:.38em;color:#c8ac76;font-weight:700}
+.legend-intro-copy strong{font-size:clamp(70px,16vmin,136px);font-weight:850;line-height:1.23;letter-spacing:.06em;color:#fff2ce;text-shadow:0 2px 26px #c79a4c4e}
+.legend-intro-copy small{font-size:clamp(12px,2.1vmin,17px);font-weight:750;letter-spacing:.42em;color:#efce8b}
+.legend-floor-light{position:absolute;left:50%;top:78%;width:min(66vw,530px);height:1px;background:linear-gradient(90deg,transparent,#f3d5908f,transparent);transform:translateX(-50%);animation:legend-line-in 1.5s ease-out both}
+#resultOverlay.legend-revealed .legend-sequence{opacity:0;visibility:hidden;transition:opacity .32s ease-out,visibility 0s linear .32s}
+#resultOverlay.legend-intro #resultCard{opacity:0!important;visibility:hidden;pointer-events:none;transform:translateY(18px) scale(.96)!important}
+#resultOverlay.is-legendary #resultCard{
+  max-width:550px;
+  border:1.5px solid rgba(236,193,109,.75)!important;border-radius:22px;
+  background:linear-gradient(145deg,rgba(48,39,27,.99),rgba(17,17,17,.99) 62%,rgba(28,23,18,.99))!important;
+  box-shadow:0 16px 60px #000e,0 0 55px #d9a54a27,inset 0 1px #fff7d033!important;
+}
+#resultOverlay.is-legendary #resultCard::before{border:1px solid #dcb36f29!important;inset:8px;border-radius:15px;animation:none!important;box-shadow:none!important}
+#resultOverlay.legend-revealed #resultCard.pop-in{animation:legend-card-enter .53s cubic-bezier(.18,.78,.18,1) both!important}
+#resultOverlay.is-legendary .result-star{font-family:Georgia,serif;font-size:70px;line-height:1;color:#f2cd89;text-shadow:0 0 28px #dfb26057;animation:none}
+#resultOverlay.is-legendary .result-kicker{color:#e6c88d;letter-spacing:.28em;font-size:11px;margin-top:11px}
+#resultOverlay.is-legendary #resultTitle{font-size:clamp(30px,5vw,46px);font-weight:850;letter-spacing:-.055em;color:#fff0ca;text-shadow:none}
+#resultOverlay.is-legendary .result-subtitle{color:#c9bca6}
+#resultOverlay.is-legendary #wonPrize{
+  border:1px solid #e1bd7a95;background:linear-gradient(133deg,#fff5d5,#dbb879 62%,#b98b42);
+  color:#312414;border-radius:13px;font-weight:900;box-shadow:inset 0 1px #fffaf2a6,0 10px 30px #0007;
+}
+#resultOverlay.is-legendary .result-details{color:#d8c6a5}
+#resultOverlay.is-legendary #countdown{color:#b9aa90}
+@keyframes legend-ring-in{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.38)}
+  50%{opacity:.5}
+  100%{opacity:.78;transform:translate(-50%,-50%) scale(1.17)}
+}
+@keyframes legend-aura-in{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.65)}
+  40%{opacity:.55}
+  100%{opacity:.8;transform:translate(-50%,-50%) scale(1.08)}
+}
+@keyframes legend-rays-in{
+  0%{opacity:0;transform:translate(-50%,-50%) rotate(-16deg) scale(.65)}
+  50%{opacity:.7}
+  100%{opacity:.45;transform:translate(-50%,-50%) rotate(12deg) scale(1.2)}
+}
+@keyframes legend-emblem-in{
+  0%{opacity:0;transform:translateY(20px) scale(.58) rotate(-25deg)}
+  32%{opacity:.95}
+  70%{transform:translateY(0) scale(1.09) rotate(0deg)}
+  100%{opacity:1;transform:translateY(-3px) scale(1)}
+}
+@keyframes legend-copy-in{
+  0%,25%{opacity:0;transform:translateY(22px)}
+  56%{opacity:.8}
+  100%{opacity:1;transform:translateY(0)}
+}
+@keyframes legend-line-in{
+  0%,35%{opacity:0;scale:.1 1}
+  75%{opacity:.8}
+  100%{opacity:.32;scale:1 1}
+}
+@keyframes legend-card-enter{
+  0%{opacity:0;transform:translateY(18px) scale(.94)}
+  65%{opacity:1}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@media(max-width:580px){
+  .legend-emblem{width:min(28vw,124px)}
+  .legend-intro-copy{margin-top:16px;gap:2px}
+  .legend-intro-copy strong{font-size:clamp(66px,19vw,92px)}
+  .legend-intro-copy span{font-size:9px;letter-spacing:.21em}
+  .legend-intro-copy small{font-size:12px;letter-spacing:.3em}
+  #resultOverlay.is-legendary #resultCard{padding:24px 18px 22px;border-radius:18px}
+  #resultOverlay.is-legendary .result-star{font-size:50px}
+}
+@media(max-height:550px){
+  .legend-emblem{width:min(25vh,95px)}
+  .legend-intro-copy{margin-top:6px;gap:0}
+  .legend-intro-copy strong{font-size:clamp(44px,14vh,76px)}
+  .legend-floor-light{top:91%}
+  #resultOverlay.is-legendary #resultCard{padding:12px 20px 10px}
+  #resultOverlay.is-legendary .result-star{font-size:34px}
+}
+@media(prefers-reduced-motion:reduce){
+  .legend-dim-ring,.legend-ambient,.legend-light-rays,.legend-emblem,.legend-intro-copy,.legend-floor-light{animation:none!important}
+  #resultOverlay.legend-revealed #resultCard.pop-in{animation:none!important;opacity:1!important;transform:none!important}
+}
+/* Landscape mobile: the entire legendary reward, including the next button, stays visible. */
+@media(max-height:540px){
+  #resultOverlay.is-legendary{padding:8px!important}
+  #resultOverlay.is-legendary #resultCard{padding:9px 22px 8px!important;max-height:calc(100dvh - 16px);overflow-y:auto}
+  #resultOverlay.is-legendary .result-star{font-size:28px!important;line-height:1}
+  #resultOverlay.is-legendary .result-kicker{margin:3px 0 5px!important;font-size:9px;letter-spacing:.24em}
+  #resultOverlay.is-legendary #resultTitle{font-size:clamp(23px,6vh,30px)!important;margin:0 0 6px!important}
+  #resultOverlay.is-legendary .result-subtitle{font-size:11px!important;margin:0 0 7px!important}
+  #resultOverlay.is-legendary #wonPrize{font-size:clamp(19px,5.5vh,28px)!important;padding:7px 8px!important}
+  #resultOverlay.is-legendary .result-details{font-size:11px!important;margin:7px 0!important}
+  #resultOverlay.is-legendary .result-next{min-height:34px!important;padding:6px 14px!important;margin:8px 0 4px!important}
+  #resultOverlay.is-legendary #countdown{font-size:10px!important;margin:0!important}
+}
+/* One restrained reveal pulse behind the card (transform/opacity only). */
+#resultOverlay.is-legendary.legend-revealed::after{
+  content:"";position:absolute;left:50%;top:50%;z-index:21;pointer-events:none;
+  width:min(86vmin,600px);aspect-ratio:1;border-radius:50%;
+  border:1px solid #f4cf8499;
+  box-shadow:0 0 36px #efb65f55,inset 0 0 30px #efb65f35;
+  animation:legend-reveal-pulse .73s ease-out both;
+}
+@keyframes legend-reveal-pulse{
+  0%{opacity:.8;transform:translate(-50%,-50%) scale(.45)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.35)}
+}
+@media(prefers-reduced-motion:reduce){#resultOverlay.is-legendary.legend-revealed::after{animation:none;display:none}}
+
+/* Award name: whitespace-balanced 1–2 lines with responsive text sizing. */
+#wonPrize.won-prize{
+  box-sizing:border-box;width:100%;min-width:0;min-height:90px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:1px;line-height:1.15;letter-spacing:-.035em;
+  font-size:var(--prize-font,clamp(32px,5vw,61px));
+  padding:14px 13px;overflow:hidden;
+}
+#wonPrize .prize-line{
+  display:block;max-width:100%;width:100%;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:clip;
+  text-align:center;line-height:1.15;
+}
+#wonPrize.prize-fit-limit .prize-line{text-overflow:ellipsis}
+@media(max-width:580px){#wonPrize.won-prize{min-height:76px;padding:13px 9px}}
+@media(max-height:540px){
+  #wonPrize.won-prize,#resultOverlay.is-legendary #wonPrize{
+    min-height:43px;padding:6px 8px!important;gap:0;
+    font-size:var(--prize-font,clamp(19px,5.5vh,28px))!important;
+  }
+}
+/* Nonlegend award dialogs must also fit landscape phones and short windows. */
+@media(max-height:540px){
+  #resultOverlay:not(.is-legendary){padding:8px!important}
+  #resultOverlay:not(.is-legendary) #resultCard{
+    width:min(96vw,570px);max-height:calc(100dvh - 16px);
+    overflow-y:auto;padding:10px 18px 8px!important;border-radius:18px;
+  }
+  #resultOverlay:not(.is-legendary) .result-star{font-size:30px!important;line-height:1}
+  #resultOverlay:not(.is-legendary) .result-kicker{font-size:9px;letter-spacing:2px;margin:2px 0 4px}
+  #resultOverlay:not(.is-legendary) #resultTitle{font-size:clamp(22px,6vh,29px)!important;margin:0 0 5px}
+  #resultOverlay:not(.is-legendary) .result-subtitle{font-size:11px!important;margin:0 0 6px}
+  #resultOverlay:not(.is-legendary) .result-details{font-size:11px!important;margin:7px 0}
+  #resultOverlay:not(.is-legendary) .result-next{min-height:34px;padding:6px 14px;margin:7px 0 3px}
+  #resultOverlay:not(.is-legendary) #countdown{font-size:10px;margin:0!important}
+}
